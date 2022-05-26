@@ -1,8 +1,0 @@
-[mysql]
-user=root
-password=*******
-mysql
-create database H_W_2;
-USE H_W_2;
-CREATE TABLE users (id INT UNSIGNED, name VARCHAR(255));
-mysqldump -u root -p H_W_2 > sample;
