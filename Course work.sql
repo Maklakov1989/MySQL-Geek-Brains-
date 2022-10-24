@@ -7,7 +7,7 @@
 		id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY, 
 	    postal_code VARCHAR(50),
 	    adress VARCHAR(50) COMMENT 'Адрес',
-	    number_of_users VARCHAR(100),
+	    number_of_users BIGINT,
 	 	comercial_square_meters BIGINT UNSIGNED NOT NULL,
 		object_of_cultural_heritage ENUM('yes', 'no'),
 		social_area ENUM('yes', 'no'),
@@ -53,7 +53,9 @@
 	    device_id BIGINT UNSIGNED NOT NULL,
 	    measured_at DATETIME DEFAULT NOW(),
 	    
+	    
 	    FOREIGN KEY (device_id) REFERENCES metering_devices(id)
+	    
 	)COMMENT 'Количество полученых гигакалорий';
 	
 	
@@ -87,6 +89,8 @@
 		
 		foreign key (service_company_id) references service_company(id)	
 	)COMMENT 'Бригада';
+
+
 	
 	CREATE TABLE heating_company(
 		id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
@@ -1795,3 +1799,83 @@ INSERT INTO `consumer` (`id`, `name`, `last_name`, `financial_account`, `phone_n
 ('998', 'Edyth', 'Kiehn', '8716635410', '89036442473', '8527', '98'),
 ('999', 'Dylan', 'Gerhold', '5823514350', '89079805944', '10124', '99'),
 ('1000', 'Guadalupe', 'Homenick', '3135720599', '89023961304', '10494', '100');
+
+
+SELECT c.id, c.name, c.last_name
+FROM consumer c 
+JOIN buildings b ON b.social_area = 'yes'
+JOIN prefecture p ON p.name = 'ullam'
+GROUP BY c.name ;
+
+-- соколько домов обслуживает каждая ресурсо снабжающая организация
+SELECT 
+	hc.name  AS 'Ресурсо снабжающая организация', 
+	count(b.id) AS 'Количество домов'
+FROM buildings b
+JOIN heating_point hp ON hp.building_id=b.id
+JOIN heating_company hc ON hc.id=hp.heating_company_id 
+GROUP BY hc.name
+ORDER BY 'Количество домов';
+
+-- сколько домов в каждой префектуре
+SELECT 
+p.name AS 'Префектуры',
+count(b.id) AS 'Количество домов'
+FROM buildings b 
+JOIN heating_point hp ON hp.building_id=b.id 
+JOIN district d ON d.id=hp.district_id
+JOIN prefecture p ON p.id=d.prefecture_id 
+GROUP BY p.name
+ORDER BY 'Количество домов';
+
+
+-- представление сколько жителей обслуживает 1 тепловой пункт
+
+DROP VIEW IF EXISTS buildings_heating_poins;
+CREATE VIEW buildings_heating_poins 
+AS SELECT 
+hp.name,
+buildings.number_of_users 
+FROM buildings
+JOIN heating_point hp ON hp.id=buildings.id;
+
+-- представление сколько тепловых пунктов у каждой ресурсо снабжающей компании
+
+DROP VIEW IF EXISTS heating_company_heating_point;
+CREATE VIEW heating_company_heating_point 
+AS SELECT 
+hc.name,
+count(*)  
+FROM heating_point hp 
+JOIN heating_company hc  ON hc.id=hp.heating_company_id 
+GROUP BY hc.name;
+
+-- Создайте таблицу logs типа Archive. Пусть при каждом создании записи в таблицах users, 
+-- catalogs и products в таблицу logs помещается время и дата создания записи, название таблицы, 
+-- идентификатор первичного ключа и содержимое поля name.
+
+
+drop table if exists `logs`;
+create table `logs`(
+create_at datetime DEFAULT NOW(), 
+`table_name` varchar(45) NOT NULL, 
+table_id INT UNSIGNED NOT NULL, 
+name_value varchar(45)
+) engine=ARCHIVE;
+
+DELIMITER //
+DROP TRIGGER IF EXISTS `central_heating`.`measurements_AFTER_INSERT` //
+DELIMITER ;
+
+DROP TRIGGER IF EXISTS `central_heating`.`creation_record _measurements`;
+
+DELIMITER //
+
+
+CREATE DEFINER=`root`@`localhost` TRIGGER `creation_record _measurements` AFTER INSERT ON `measurements` FOR EACH ROW BEGIN
+insert into central_heating.logs (create_at,`table_name`, table_id, name_value)
+values (now(), 'central_heating.users', new.id, new.recieved_calories, NEW.device_id);
+
+END//
+
+DELIMITER ;
